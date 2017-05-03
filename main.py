@@ -62,9 +62,10 @@ def get_hog_data(images_data, hist_size=256, pixels_per_cell=(8, 8), cells_per_b
         # 使用HOG方法提取图像的纹理特征.
         hog = skif.hog(images_data[i], pixels_per_cell=pixels_per_cell, cells_per_block=cells_per_block)
         # 统计图像的直方图
-        max_bins = int(hog.max() + 1)
+        # max_bins = int(hog.max() + 1)
         # hist size:256
-        hist[i], _ = np.histogram(hog, normed=True, bins=max_bins, range=(0, max_bins))
+        # hist[i], _ = np.histogram(hog, normed=True, bins=max_bins, range=(0, max_bins))
+        hist[i] = hog
 
     return hist
 
@@ -88,20 +89,28 @@ def main():
     # 调整后的图片列表
     pos_file_path_list = map(lambda x: os.path.join(RESIZE_POS_IMAGE_DIR, x), os.listdir(RESIZE_POS_IMAGE_DIR))
     neg_file_path_list = map(lambda x: os.path.join(RESIZE_NEG_IMAGE_DIR, x), os.listdir(RESIZE_NEG_IMAGE_DIR))
-    # 合并数据集
-    file_path_list = pos_file_path_list + neg_file_path_list
-    label_list = [1] * len(pos_file_path_list) + [-1] * len(neg_file_path_list)
     # 切分数据集
-    train_file_list, train_label_list, test_file_list, test_label_list = split_data(file_path_list, label_list,
-                                                                                    rate=0.5)
+    train_file_list0, train_label_list0, test_file_list0, test_label_list0 = split_data(pos_file_path_list,
+                                                                                        [1] * len(pos_file_path_list),
+                                                                                        rate=0.5)
+    train_file_list1, train_label_list1, test_file_list1, test_label_list1 = split_data(neg_file_path_list,
+                                                                                        [-1] * len(neg_file_path_list),
+                                                                                        rate=0.5)
+    # 合并数据集
+    train_file_list = train_file_list0 + train_file_list1
+    train_label_list = train_label_list0 + train_label_list1
+    test_file_list = test_file_list0 + test_file_list1
+    test_label_list = test_label_list0 + test_label_list1
     # 载入图片
     train_image_array = load_images(train_file_list, width=IMG_WIDTH, height=IMG_HEIGHT)
     train_label_array = np.array(train_label_list)
     test_image_array = load_images(test_file_list, width=IMG_WIDTH, height=IMG_HEIGHT)
     test_label_array = np.array(test_label_list)
     # 获取HOG特征
-    train_hist_array = get_hog_data(train_image_array, hist_size=256, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
-    test_hist_array = get_hog_data(test_image_array, hist_size=256, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
+    # train_hist_array = get_hog_data(train_image_array, hist_size=256, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
+    # test_hist_array = get_hog_data(test_image_array, hist_size=256, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
+    train_hist_array = get_hog_data(train_image_array, hist_size=72900, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
+    test_hist_array = get_hog_data(test_image_array, hist_size=72900, pixels_per_cell=(8, 8), cells_per_block=(3, 3))
     # 选取svm里面的SVR作为训练模型
     svr_rbf = SVR(kernel='rbf', C=1e3, gamma=0.1)  # SVC, NuSVC, SVR, NuSVR, OneClassSVM, LinearSVC, LinearSVR
     # 训练和测试
@@ -119,5 +128,5 @@ if __name__ == '__main__':
         scores.append(s)
     max_s = max(scores)
     min_s = min(scores)
-    avg_s = sum(scores)/float(n)
+    avg_s = sum(scores) / float(n)
     print '==========\nmax: %s\nmin: %s\navg: %s' % (max_s, min_s, avg_s)
